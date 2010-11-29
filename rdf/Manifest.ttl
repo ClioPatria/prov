@@ -13,5 +13,5 @@
 	a lib:Ontology ;
 	a lib:Virtual ;
 	dcterms:title "Schema for the common extensions to the open provenance model vocabulary "@en ;
-	dctemrs:source <http://opmv.googlecode.com/svn/trunk/schema/types/common.rdf> ;
+	dcterms:source <http://opmv.googlecode.com/svn/trunk/schema/types/common.rdf> ;
 	owl:imports <opmv>, <opmvc.rdf> .
