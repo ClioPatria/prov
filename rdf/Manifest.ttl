@@ -1,0 +1,17 @@
+@prefix      lib: <http://www.swi-prolog.org/rdf/library/> .
+@prefix      owl: <http://www.w3.org/2002/07/owl#> .
+@prefix	 dcterms: <http://purl.org/dc/terms/> .
+
+<opmv>
+	a lib:Ontology ;
+	a lib:Virtual ;
+	dcterms:title "Schema for the open provenance model vocabulary "@en ;
+	dcterms:source <http://open-biomed.sourceforge.net/opmv/opmv.owl> ;
+	owl:imports <opmv.ttl> .
+
+<opmvc>
+	a lib:Ontology ;
+	a lib:Virtual ;
+	dcterms:title "Schema for the common extensions to the open provenance model vocabulary "@en ;
+	dctemrs:source <http://opmv.googlecode.com/svn/trunk/schema/types/common.rdf> ;
+	owl:imports <opmv>, <opmvc.rdf> .
