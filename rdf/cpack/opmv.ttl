@@ -1,0 +1,30 @@
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix foaf:    <http://xmlns.com/foaf/0.1/> .
+@prefix cpack:   <http://cliopatria.swi-prolog.org/schema/cpack#> .
+
+# This file is a Turtle-format RDF file that describes the package.  It
+# *must* be located in rdf/cpack/opmv.ttl
+#
+# Author is a FOAF Person. If you have a FOAF profile, you can link to
+# this.  Otherwise you can specify the information inline as done below.
+# See http://xmlns.com/foaf/spec/ for defines fields.
+
+<> a cpack:Package ;
+	cpack:packageName "opmv" ;
+	dcterms:title "[83,99,104,101,109,97,32,97,110,100,32,118,105,122,46,32,115,117,112,112,111,114,116,105,110,103,32,116,104,101,32,79,112,101,110,32,80,114,111,118,101,110,97,110,99,101,32,77,111,100,101,108]" ;
+	cpack:author [ a foaf:Person ;
+		       foaf:name "@FOAFNAME@" ;
+		       foaf:mbox "@FOAFMBOX@" ;
+		     ] ;
+	cpack:primaryRepository
+	    [ a cpack:GitRepository ;
+	      cpack:gitURL <@FETCHREPOSITORY@>
+	    ] ;
+	cpack:description
+
+"""The package description goes here.  You can use PlDoc Wiki markup.
+""" .
+
+
