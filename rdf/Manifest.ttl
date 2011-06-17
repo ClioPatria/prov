@@ -7,6 +7,7 @@
 	a lib:Virtual ;
 	dcterms:title "Schema for the open provenance model vocabulary "@en ;
 	dcterms:source <http://open-biomed.sourceforge.net/opmv/opmv.owl> ;
+	lib:source <http://open-biomed.sourceforge.net/opmv/opmv.owl> ;
 	owl:imports <opmv.ttl> .
 
 <opmvc>
@@ -14,4 +15,5 @@
 	a lib:Virtual ;
 	dcterms:title "Schema for the common extensions to the open provenance model vocabulary "@en ;
 	dcterms:source <http://opmv.googlecode.com/svn/trunk/schema/types/common.rdf> ;
-	owl:imports <opmv>, <opmvc.rdf> .
+	lib:source <http://opmv.googlecode.com/svn/trunk/schema/types/> ;
+	owl:imports <common.rdf> .
