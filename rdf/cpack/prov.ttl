@@ -11,7 +11,7 @@
 # this.  Otherwise you can specify the information inline as done below.
 # See http://xmlns.com/foaf/spec/ for defines fields.
 
-<> a cpack:Schema ;
+<> a cpack:Ontology ;
 	cpack:packageName "prov" ;
 	dcterms:title "Schema supporting the W3C PROV vocabulary";
 	cpack:author [ a foaf:Person ;
