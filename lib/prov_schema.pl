@@ -1,5 +1,4 @@
 :- module(prov_schema, []).
-:- use_module(library(semweb/rdf_db)).
 :- use_module(library(semweb/rdf_library)).
 
 /** <module> Provide PROV schema, namespace and visualization hooks.
