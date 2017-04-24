@@ -193,6 +193,11 @@ log_entity_create(File, Options) :-
     rdf_assert(Entity, rdf:type, prov:'Entity', ProvBundle),
     rdf_assert(Entity, prov:generatedAtTime, TimeStamp^^xsd:dateTime,  ProvBundle),
     rdf_assert(Entity, prov:wasGeneratedBy, Activity, ProvBundle),
+    (   option(was_derived_from(Source), Options)
+    ->  uri_file_name(SourceUri, Source),
+        rdf_assert(Entity, prov:wasDerivedFrom, SourceUri, ProvBundle)
+    ;   true
+    ),
     log_entity_graph_properties(Entity, Graph, ProvBundle).
 
 log_entity_graph_properties(Entity, Graph, ProvBundle) :-
