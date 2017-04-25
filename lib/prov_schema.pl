@@ -47,8 +47,9 @@ prov_init(Options) :-
     retractall(current_prov_uri(_,_)),
     default_provenance_graph(DefaultBundle),
     option(prov(ProvBundle), Options, DefaultBundle),
+    option(persistency(Persistency), Options, false),
     rdf_unload_graph(ProvBundle),
-    rdf_persistency(ProvBundle, false),
+    rdf_persistency(ProvBundle, Persistency),
     prov_uri(ProvBundle, program(_Program), Options),
     prov_uri(ProvBundle, person(_Person), Options).
 
