@@ -50,8 +50,12 @@ prov_init(Options) :-
     option(persistency(Persistency), Options, false),
     rdf_unload_graph(ProvBundle),
     rdf_persistency(ProvBundle, Persistency),
-    prov_uri(ProvBundle, program(_Program), Options),
-    prov_uri(ProvBundle, person(_Person), Options).
+    rdf_assert('', rdf:type, prov:'Bundle', ProvBundle),
+    prov_uri(ProvBundle, program(Program), Options),
+    prov_uri(ProvBundle, person(Person), Options),
+    rdf_assert('', prov:wasAttributedTo, Person, ProvBundle),
+    rdf_assert('', prov:wasAttributedTo, Program, ProvBundle).
+
 
 %!  prov_uri(+Graph, -URI, +Options) is det.
 %
@@ -77,6 +81,9 @@ prov_program(Graph, Program, Options)  :-
     working_directory(CWD,CWD),
     uri_file_name(CWDF,CWD),
     gethostname(LocalHost),
+    variant_sha1(CWDF-LocalHost, LocHash),
+    rdf_global_id(provx:LocHash, Location),
+    format(atom(LocationLabel), '~w:~w', [LocalHost, CWD]),
     findall(M-U-V-F,
             (   git_module_property(M, home_url(U)),
                 git_module_property(M, version(V)),
@@ -94,15 +101,20 @@ prov_program(Graph, Program, Options)  :-
     option(program_label(Label:Lang), Options, 'Local ClioPatria instance':en),
     rdf_assert(Program, rdfs:label, Label@Lang, Graph),
     rdf_assert(Program, rdf:type,   prov:'SoftwareAgent', Graph),
-    rdf_assert(Program, provx:cwd, CWDF, Graph),
-    rdf_assert(Program, provx:host, LocalHost^^xsd:string, Graph),
+    rdf_assert(Program, prov:atLocation, Location, Graph),
+    rdf_assert(Location, rdf:type, prov:'Location', Graph),
+    rdf_assert(Location, provx:host, LocalHost^^xsd:string, Graph),
+    rdf_assert(Location, provx:cwd, CWDF, Graph),
+    rdf_assert(Location, rdfs:label, LocationLabel^^xsd:string, Graph),
     forall(member(M-U-V-D, SortedModules),
            (   variant_sha1(M-U-V-D, CompHash),
                rdf_global_id(provx:CompHash, Comp),
                rdf_assert(Program, provx:component, Comp, Graph),
-               rdf_assert(Comp, doap:revision, V@en, Graph),
+               rdf_assert(Comp, rdf:type, doap:'Project', Graph),
+               rdf_assert(D, rdf:type, doap:'GitBranch', Graph),
+               rdf_assert(Comp, doap:revision, V^^xsd:string, Graph),
                rdf_assert(Comp, doap:name, M@en, Graph),
-               rdf_assert(Comp, rdfs:seeAlso, D@en, Graph),
+               rdf_assert(Comp, doap:repository, D, Graph),
                rdf_assert(Comp, doap:homepage, U@en, Graph)
            )
           ),
