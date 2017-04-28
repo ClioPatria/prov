@@ -91,8 +91,8 @@ prov_program(Graph, Program, Options)  :-
     variant_sha1(SortedModules, Hash),
     rdf_global_id(provx:Hash, Program),
     assert(current_prov_uri(Graph, program(Program))),
-    option(program_label(Label), Options, 'Local ClioPatria instance'@en),
-    rdf_assert(Program, rdfs:label, Label, Graph),
+    option(program_label(Label:Lang), Options, 'Local ClioPatria instance':en),
+    rdf_assert(Program, rdfs:label, Label@Lang, Graph),
     rdf_assert(Program, rdf:type,   prov:'SoftwareAgent', Graph),
     rdf_assert(Program, provx:cwd, CWDF, Graph),
     rdf_assert(Program, provx:host, LocalHost^^xsd:string, Graph),
@@ -113,7 +113,7 @@ prov_person(Graph, Person, Options) :-
     variant_sha1(UserName, Hash),
     rdf_global_id(provx:Hash, DefaultPerson),
     option(person(Person), Options, DefaultPerson),
-    rdf_assert(Person, foaf:name, UserName@en, Graph),
+    rdf_assert(Person, foaf:name, UserName^^xsd:string, Graph),
     rdf_assert(Person, rdf:type, prov:'Person', Graph),
     assert(current_prov_uri(Graph, person(Person))).
 
