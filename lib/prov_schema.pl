@@ -97,12 +97,13 @@ prov_program(Graph, Program, Options)  :-
     rdf_assert(Program, provx:cwd, CWDF, Graph),
     rdf_assert(Program, provx:host, LocalHost^^xsd:string, Graph),
     forall(member(M-U-V-D, SortedModules),
-           (   rdf_create_bnode(B),
-               rdf_assert(Program, provx:component, B, Graph),
-               rdf_assert(B, doap:revision, V@en, Graph),
-               rdf_assert(B, doap:name, M@en, Graph),
-               rdf_assert(B, rdfs:seeAlso, D@en, Graph),
-               rdf_assert(B, doap:homepage, U@en, Graph)
+           (   variant_sha1(M-U-V-D, CompHash),
+               rdf_global_id(provx:CompHash, Comp),
+               rdf_assert(Program, provx:component, Comp, Graph),
+               rdf_assert(Comp, doap:revision, V@en, Graph),
+               rdf_assert(Comp, doap:name, M@en, Graph),
+               rdf_assert(Comp, rdfs:seeAlso, D@en, Graph),
+               rdf_assert(Comp, doap:homepage, U@en, Graph)
            )
           ),
     !.
@@ -142,7 +143,8 @@ log_start_activity(Activity, ProvBundle, Options) :-
     prov_uri(ProvBundle, program(Program), Options),
     prov_uri(ProvBundle, person(Person), Options),
     xsd_now(TimeStamp),
-    rdf_create_bnode(Activity),
+    variant_sha1(TimeStamp:Program:Person:Label, Hash),
+    rdf_global_id(provx:Hash, Activity),
     rdf_assert(Activity, rdf:type, prov:'Activity', ProvBundle),
     rdf_assert(Activity, rdfs:label, Label@en, ProvBundle),
     rdf_assert(Activity, prov:startedAtTime, TimeStamp^^xsd:dateTime, ProvBundle),
