@@ -115,11 +115,16 @@ prov_program(Graph, Program, Options)  :-
                rdf_assert(Comp, doap:revision, V^^xsd:string, Graph),
                rdf_assert(Comp, doap:name, M@en, Graph),
                rdf_assert(Comp, doap:repository, D, Graph),
-               rdf_assert(Comp, doap:homepage, U@en, Graph)
+               rdf_assert(Comp, doap:homepage, U@en, Graph),
+               prov_module_settings(Comp, M, Options)
            )
           ),
     !.
 
+prov_module_settings(Comp, Module, Options) :-
+    forall(setting(Module:Key, Value),
+           assert_key_value_pair(Comp, Key, Value, Options)
+          ).
 prov_person(Graph, Person, Options) :-
     default_user_name(DefaultUserName),
     option(user(UserName), Options, DefaultUserName),
