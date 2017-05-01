@@ -146,13 +146,14 @@ xsd_timestamp(Time, TimeStamp) :-
     stamp_date_time(Time, Date, 'UTC'),
     format_time(atom(TimeStamp), '%FT%T%:z', Date, posix).
 
-log_start_activity(Activity, ProvBundle, Options) :-
-    option(label(Label), Options),
+log_start_activity(Activity, ProvBundle, Options0) :-
+    option(label(Label), Options0),
     (   ground(ProvBundle)
     ->  true
     ;   default_provenance_graph(DefaultBundle),
-        option(prov(ProvBundle), Options, DefaultBundle)
+        option(prov(ProvBundle), Options0, DefaultBundle)
     ),
+    Options = [prov(ProvBundle) | Options0],
     prov_uri(ProvBundle, program(Program), Options),
     prov_uri(ProvBundle, person(Person), Options),
     xsd_now(TimeStamp),
