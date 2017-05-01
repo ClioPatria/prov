@@ -121,10 +121,6 @@ prov_program(Graph, Program, Options)  :-
           ),
     !.
 
-prov_module_settings(Comp, Module, Options) :-
-    forall(setting(Module:Key, Value),
-           assert_key_value_pair(Comp, Key, Value, Options)
-          ).
 prov_person(Graph, Person, Options) :-
     default_user_name(DefaultUserName),
     option(user(UserName), Options, DefaultUserName),
@@ -230,22 +226,36 @@ log_derivation(Entity, Options) :-
 
 log_derivation(_,_). % skip
 
-
+prov_module_settings(Comp, Module, Options) :-
+    option(prov(ProvBundle), Options),
+    forall(setting(Module:Key, Value),
+           assert_key_value_pair(Comp, Key, Value, ProvBundle)
+          ).
 log_entity_graph_properties(Entity, Graph, ProvBundle) :-
     forall(rdf_graph_property(Graph, Property),
            (   Property =.. [ Local, LValue ],
-               (   Local = triples
-               ->  rdf_global_id(void:Local, Pred)
-               ;   Local = source_last_modified
-               ->  rdf_global_id(dcterms:modified, Pred)
-               ;   Local = source
-               ->  rdf_global_id(prov:wasDerivedFrom, Pred)
-               ;   rdf_global_id(provx:Local, Pred)
-               ),
-               (   Local = source_last_modified
-               ->  xsd_timestamp(LValue, Value)
-               ;   Value = LValue
-               ),
-               rdf_assert(Entity, Pred, Value, ProvBundle)
-           )
-          ).
+               assert_key_value_pair(Entity, Local, LValue, ProvBundle)
+           )).
+
+assert_key_value_pair(Entity, Key0, Value0, Graph) :-
+    rdf_equal(xsd:string, XsdString),
+    (   Key0 = triples
+    ->  rdf_global_id(void:triples, Pred)
+    ;   Key0 = source_last_modified
+    ->  rdf_global_id(dcterms:modified, Pred)
+    ;   Key0 = source
+    ->  rdf_global_id(prov:wasDerivedFrom, Pred)
+    ;   rdf_global_id(provx:Key0, Pred)
+    ),
+    (   Key0 = source_last_modified
+    ->  xsd_timestamp(Value0, Value)
+    ;   Value0 == []
+    ->  rdf_equal(rdf:nil, Value)
+    ;   compound(Value0)
+    ->  format(atom(Atom), '~p', [Value0]),
+        Value = Atom^^XsdString
+    ;   number(Value0)
+    ->  Value = Value0
+    ;   Value = Value0^^XsdString
+    ),
+    rdf_assert(Entity, Pred, Value, Graph).
