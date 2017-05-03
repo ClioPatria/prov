@@ -255,7 +255,7 @@ assert_key_value_pair(Entity, Key0, Value0, Graph) :-
     ;   compound(Value0)
     ->  format(atom(Atom), '~p', [Value0]),
         Value = Atom^^XsdString
-    ;   number(Value0)
+    ;   ( number(Value0) ; uri_is_global(Value0) )
     ->  Value = Value0
     ;   Value = Value0^^XsdString
     ),
