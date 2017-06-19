@@ -44,11 +44,15 @@ default_provenance_graph(provbundle).
 %   Clear current_prov_uri cached assertions
 %   and initialize prov bundle
 prov_init(Options) :-
-    retractall(current_prov_uri(_,_)),
     default_provenance_graph(DefaultBundle),
     option(prov(ProvBundle), Options, DefaultBundle),
     option(persistency(Persistency), Options, false),
-    rdf_unload_graph(ProvBundle),
+    option(clear_bundle(UnloadBundle), Options, true),
+    (   UnloadBundle
+    ->  rdf_unload_graph(ProvBundle),
+        retractall(current_prov_uri(_,_))
+    ;   true
+    ),
     rdf_persistency(ProvBundle, Persistency),
     prov_uri(ProvBundle, program(_Program), Options),
     prov_uri(ProvBundle, person(_Person), Options).
