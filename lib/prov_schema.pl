@@ -54,8 +54,12 @@ prov_init(Options) :-
     ;   true
     ),
     rdf_persistency(ProvBundle, Persistency),
-    prov_uri(ProvBundle, program(_Program), Options),
-    prov_uri(ProvBundle, person(_Person), Options).
+    rdf_assert('', rdf:type, prov:'Bundle', ProvBundle),
+    prov_uri(ProvBundle, program(Program), Options),
+    prov_uri(ProvBundle, person(Person), Options),
+    rdf_assert('', prov:wasAttributedTo, Person, ProvBundle),
+    rdf_assert('', prov:wasAttributedTo, Program, ProvBundle).
+
 
 %!  prov_uri(+Graph, -URI, +Options) is det.
 %
@@ -81,6 +85,9 @@ prov_program(Graph, Program, Options)  :-
     working_directory(CWD,CWD),
     uri_file_name(CWDF,CWD),
     gethostname(LocalHost),
+    variant_sha1(CWDF-LocalHost, LocHash),
+    rdf_global_id(provx:LocHash, Location),
+    format(atom(LocationLabel), '~w:~w', [LocalHost, CWD]),
     findall(M-U-V-F,
             (   git_module_property(M, home_url(U)),
                 git_module_property(M, version(V)),
@@ -95,18 +102,31 @@ prov_program(Graph, Program, Options)  :-
     variant_sha1(SortedModules, Hash),
     rdf_global_id(provx:Hash, Program),
     assert(current_prov_uri(Graph, program(Program))),
-    option(program_label(Label), Options, 'Local ClioPatria instance'@en),
-    rdf_assert(Program, rdfs:label, Label, Graph),
+    option(program_label(Label:Lang), Options, 'Local ClioPatria instance':en),
+    rdf_assert(Program, rdfs:label, Label@Lang, Graph),
     rdf_assert(Program, rdf:type,   prov:'SoftwareAgent', Graph),
-    rdf_assert(Program, provx:cwd, CWDF, Graph),
-    rdf_assert(Program, provx:host, LocalHost^^xsd:string, Graph),
+    rdf_assert(Program, prov:atLocation, Location, Graph),
+    rdf_assert(Location, rdf:type, prov:'Location', Graph),
+    rdf_assert(Location, provx:host, LocalHost^^xsd:string, Graph),
+    rdf_assert(Location, provx:cwd, CWDF, Graph),
+    rdf_assert(Location, rdfs:label, LocationLabel^^xsd:string, Graph),
     forall(member(M-U-V-D, SortedModules),
-           (   rdf_create_bnode(B),
-               rdf_assert(Program, provx:component, B, Graph),
-               rdf_assert(B, doap:revision, V@en, Graph),
-               rdf_assert(B, doap:name, M@en, Graph),
-               rdf_assert(B, rdfs:seeAlso, D@en, Graph),
-               rdf_assert(B, doap:homepage, U@en, Graph)
+           (   variant_sha1(M-U-V-D-comp, CompHash),
+               variant_sha1(M-U-V-D-vers, VersHash),
+               rdf_global_id(provx:CompHash, Comp),
+               rdf_global_id(provx:VersHash, Version),
+               format(atom(VLabel), '~w (~w)', [M, V]),
+               rdf_assert(Comp,    rdf:type, doap:'Project', Graph),
+               rdf_assert(Version, rdf:type, doap:'Version', Graph),
+               rdf_assert(D,       rdf:type, doap:'GitBranch', Graph),
+               rdf_assert(Program, provx:component, Comp, Graph),
+               rdf_assert(Version, doap:revision, V^^xsd:string, Graph),
+               rdf_assert(Version, rdfs:label, VLabel^^xsd:string, Graph),
+               rdf_assert(Comp, doap:name, M@en, Graph),
+               rdf_assert(Comp, doap:repository, D, Graph),
+               rdf_assert(Comp, doap:homepage, U, Graph),
+               rdf_assert(Comp, doap:release, Version, Graph),
+               prov_module_settings(Comp, M, Options)
            )
           ),
     !.
@@ -117,7 +137,7 @@ prov_person(Graph, Person, Options) :-
     variant_sha1(UserName, Hash),
     rdf_global_id(provx:Hash, DefaultPerson),
     option(person(Person), Options, DefaultPerson),
-    rdf_assert(Person, foaf:name, UserName@en, Graph),
+    rdf_assert(Person, foaf:name, UserName^^xsd:string, Graph),
     rdf_assert(Person, rdf:type, prov:'Person', Graph),
     assert(current_prov_uri(Graph, person(Person))).
 
@@ -136,14 +156,19 @@ xsd_timestamp(Time, TimeStamp) :-
     stamp_date_time(Time, Date, 'UTC'),
     format_time(atom(TimeStamp), '%FT%T%:z', Date, posix).
 
-log_start_activity(Activity, ProvBundle, Options) :-
-    default_provenance_graph(DefaultBundle),
-    option(label(Label), Options),
-    option(prov(ProvBundle), Options, DefaultBundle),
+log_start_activity(Activity, ProvBundle, Options0) :-
+    option(label(Label), Options0),
+    (   ground(ProvBundle)
+    ->  true
+    ;   default_provenance_graph(DefaultBundle),
+        option(prov(ProvBundle), Options0, DefaultBundle)
+    ),
+    Options = [prov(ProvBundle) | Options0],
     prov_uri(ProvBundle, program(Program), Options),
     prov_uri(ProvBundle, person(Person), Options),
     xsd_now(TimeStamp),
-    rdf_create_bnode(Activity),
+    variant_sha1(TimeStamp:Program:Person:Label, Hash),
+    rdf_global_id(provx:Hash, Activity),
     rdf_assert(Activity, rdf:type, prov:'Activity', ProvBundle),
     rdf_assert(Activity, rdfs:label, Label@en, ProvBundle),
     rdf_assert(Activity, prov:startedAtTime, TimeStamp^^xsd:dateTime, ProvBundle),
@@ -212,22 +237,36 @@ log_derivation(Entity, Options) :-
 
 log_derivation(_,_). % skip
 
-
+prov_module_settings(Comp, Module, Options) :-
+    option(prov(ProvBundle), Options),
+    forall(setting(Module:Key, Value),
+           assert_key_value_pair(Comp, Key, Value, ProvBundle)
+          ).
 log_entity_graph_properties(Entity, Graph, ProvBundle) :-
     forall(rdf_graph_property(Graph, Property),
            (   Property =.. [ Local, LValue ],
-               (   Local = triples
-               ->  rdf_global_id(void:Local, Pred)
-               ;   Local = source_last_modified
-               ->  rdf_global_id(dcterms:modified, Pred)
-               ;   Local = source
-               ->  rdf_global_id(prov:wasDerivedFrom, Pred)
-               ;   rdf_global_id(provx:Local, Pred)
-               ),
-               (   Local = source_last_modified
-               ->  xsd_timestamp(LValue, Value)
-               ;   Value = LValue
-               ),
-               rdf_assert(Entity, Pred, Value, ProvBundle)
-           )
-          ).
+               assert_key_value_pair(Entity, Local, LValue, ProvBundle)
+           )).
+
+assert_key_value_pair(Entity, Key0, Value0, Graph) :-
+    rdf_equal(xsd:string, XsdString),
+    (   Key0 = triples
+    ->  rdf_global_id(void:triples, Pred)
+    ;   Key0 = source_last_modified
+    ->  rdf_global_id(dcterms:modified, Pred)
+    ;   Key0 = source
+    ->  rdf_global_id(prov:wasDerivedFrom, Pred)
+    ;   rdf_global_id(provx:Key0, Pred)
+    ),
+    (   Key0 = source_last_modified
+    ->  xsd_timestamp(Value0, Value)
+    ;   Value0 == []
+    ->  rdf_equal(rdf:nil, Value)
+    ;   compound(Value0)
+    ->  format(atom(Atom), '~p', [Value0]),
+        Value = Atom^^XsdString
+    ;   ( number(Value0) ; uri_is_global(Value0) )
+    ->  Value = Value0
+    ;   Value = Value0^^XsdString
+    ),
+    rdf_assert(Entity, Pred, Value, Graph).
