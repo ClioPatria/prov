@@ -54,11 +54,11 @@ prov_init(Options) :-
     ;   true
     ),
     rdf_persistency(ProvBundle, Persistency),
-    rdf_assert('', rdf:type, prov:'Bundle', ProvBundle),
+    rdf_assert(ProvBundle, rdf:type, prov:'Bundle', ProvBundle),
     prov_uri(ProvBundle, program(Program), Options),
     prov_uri(ProvBundle, person(Person), Options),
-    rdf_assert('', prov:wasAttributedTo, Person, ProvBundle),
-    rdf_assert('', prov:wasAttributedTo, Program, ProvBundle).
+    rdf_assert(ProvBundle, prov:wasAttributedTo, Person, ProvBundle),
+    rdf_assert(ProvBundle, prov:wasAttributedTo, Program, ProvBundle).
 
 
 %!  prov_uri(+Graph, -URI, +Options) is det.
