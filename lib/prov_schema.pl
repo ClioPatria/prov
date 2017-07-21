@@ -142,11 +142,14 @@ prov_person(Graph, Person, Options) :-
     assert(current_prov_uri(Graph, person(Person))).
 
 default_user_name(UserName) :-
-    git(['config','--get','user.name'], [output(Codes)]),
+    catch(git(['config','--get','user.name'], [output(Codes)]), _, fail),
     atom_codes(Atom, Codes),
     normalize_space(atom(UserName), Atom),
     !.
-
+default_user_name(UserName) :-
+    getenv('USER', UserName),
+    !.
+default_user_name(anonymous).
 
 xsd_now(TimeStamp) :-
     get_time(Time),
