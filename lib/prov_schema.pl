@@ -220,11 +220,15 @@ log_entity_create(File, Options) :-
     option(activity(Activity), Options),
     option(prov(ProvBundle), Options),
     option(graph(Graph), Options, none),
+    (   access_file(File, read),
+        time_file(File, Time)
+    ->  xsd_timestamp(Time, TimeStamp)
+    ;   xsd_now(TimeStamp)
+    ),
     (   uri_is_global(File)
     ->  Entity = File
     ;   uri_file_name(Entity, File)
     ),
-    xsd_now(TimeStamp),
     rdf_retractall(Entity, _, _, ProvBundle),
     rdf_assert(Entity, rdf:type, prov:'Entity', ProvBundle),
     rdf_assert(Entity, prov:generatedAtTime, TimeStamp^^xsd:dateTime,  ProvBundle),
