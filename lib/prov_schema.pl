@@ -193,17 +193,18 @@ log_entity_use(Spec, Options) :-
 size_time_stamp(File, Entity, Options) :-
     default_provenance_graph(DefaultBundle),
     option(prov(ProvBundle), Options, DefaultBundle),
+    rdf_retractall(Entity, provx:file_size,      _, ProvBundle),
+    rdf_retractall(Entity, prov:generatedAtTime, _, ProvBundle),
     rdf_assert(Entity, rdf:type, prov:'Entity', ProvBundle),
-    (   access_file(File, read)
+    (   access_file(File, read),
+        time_file(File, Time)
     ->  size_file(File, Size),
-        time_file(File, Time),
-        xsd_timestamp(Time, Stamp),
-        rdf_retractall(Entity, provx:file_size,      _, ProvBundle),
-        rdf_retractall(Entity, prov:generatedAtTime, _, ProvBundle),
-        rdf_assert(Entity, provx:file_size,      Size^^xsd:integer, ProvBundle),
-        rdf_assert(Entity, prov:generatedAtTime, Stamp^^xsd:dateTime, ProvBundle)
-    ;   true
-    ).
+        rdf_assert(Entity, provx:file_size, Size^^xsd:integer, ProvBundle),
+        xsd_timestamp(Time, Stamp)
+    ;   xsd_now(Stamp)
+    ),
+    rdf_assert(Entity, prov:generatedAtTime, Stamp^^xsd:dateTime, ProvBundle).
+
 
 spec_entity_file(Spec, Entity, File) :-
     uri_is_global(Spec),
@@ -225,11 +226,6 @@ log_entity_create(File, Options) :-
     option(activity(Activity), Options),
     option(prov(ProvBundle), Options),
     option(graph(Graph), Options, none),
-    (   access_file(File, read),
-        time_file(File, Time)
-    ->  xsd_timestamp(Time, TimeStamp)
-    ;   xsd_now(TimeStamp)
-    ),
     (   uri_is_global(File)
     ->  Entity = File
     ;   uri_file_name(Entity, File)
