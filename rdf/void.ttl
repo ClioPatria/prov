@@ -10,4 +10,4 @@
   a void:Dataset ;
         void:dataDump <prov-o.ttl> ;
         dcterms:title "PROV-O" ;
-        lib:source <http://www.w3.org/ns/prov-o>.
+        lib:source <http://www.w3.org/ns/prov-o#>.

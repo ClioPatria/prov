@@ -44,17 +44,21 @@ default_provenance_graph(provbundle).
 %   Clear current_prov_uri cached assertions
 %   and initialize prov bundle
 prov_init(Options) :-
-    retractall(current_prov_uri(_,_)),
     default_provenance_graph(DefaultBundle),
     option(prov(ProvBundle), Options, DefaultBundle),
     option(persistency(Persistency), Options, false),
-    rdf_unload_graph(ProvBundle),
+    option(clear_bundle(UnloadBundle), Options, true),
+    (   UnloadBundle
+    ->  rdf_unload_graph(ProvBundle),
+        retractall(current_prov_uri(_,_))
+    ;   true
+    ),
     rdf_persistency(ProvBundle, Persistency),
-    rdf_assert('', rdf:type, prov:'Bundle', ProvBundle),
+    rdf_assert(ProvBundle, rdf:type, prov:'Bundle', ProvBundle),
     prov_uri(ProvBundle, program(Program), Options),
     prov_uri(ProvBundle, person(Person), Options),
-    rdf_assert('', prov:wasAttributedTo, Person, ProvBundle),
-    rdf_assert('', prov:wasAttributedTo, Program, ProvBundle).
+    rdf_assert(ProvBundle, prov:wasAttributedTo, Person, ProvBundle),
+    rdf_assert(ProvBundle, prov:wasAttributedTo, Program, ProvBundle).
 
 
 %!  prov_uri(+Graph, -URI, +Options) is det.
@@ -138,11 +142,14 @@ prov_person(Graph, Person, Options) :-
     assert(current_prov_uri(Graph, person(Person))).
 
 default_user_name(UserName) :-
-    git(['config','--get','user.name'], [output(Codes)]),
+    catch(git(['config','--get','user.name'], [output(Codes)]), _, fail),
     atom_codes(Atom, Codes),
     normalize_space(atom(UserName), Atom),
     !.
-
+default_user_name(UserName) :-
+    getenv('USER', UserName),
+    !.
+default_user_name(anonymous).
 
 xsd_now(TimeStamp) :-
     get_time(Time),
@@ -191,7 +198,9 @@ size_time_stamp(File, Entity, Options) :-
     ->  size_file(File, Size),
         time_file(File, Time),
         xsd_timestamp(Time, Stamp),
-        rdf_assert(Entity, provx:file_size, Size^^xsd:integer, ProvBundle),
+        rdf_retractall(Entity, provx:file_size,      _, ProvBundle),
+        rdf_retractall(Entity, prov:generatedAtTime, _, ProvBundle),
+        rdf_assert(Entity, provx:file_size,      Size^^xsd:integer, ProvBundle),
         rdf_assert(Entity, prov:generatedAtTime, Stamp^^xsd:dateTime, ProvBundle)
     ;   true
     ).
@@ -216,6 +225,11 @@ log_entity_create(File, Options) :-
     option(activity(Activity), Options),
     option(prov(ProvBundle), Options),
     option(graph(Graph), Options, none),
+    (   access_file(File, read),
+        time_file(File, Time)
+    ->  xsd_timestamp(Time, TimeStamp)
+    ;   xsd_now(TimeStamp)
+    ),
     (   uri_is_global(File)
     ->  Entity = File
     ;   uri_file_name(Entity, File)
