@@ -180,8 +180,13 @@ log_entity_use(Spec, Options) :-
     option(prov(ProvBundle), Options, DefaultBundle),
     option(activity(Activity), Options),
     spec_entity_file(Spec, Entity, File),
-    rdf_assert(Entity, rdf:type, prov:'Entity', ProvBundle),
     rdf_assert(Activity, prov:used, Entity, ProvBundle),
+    size_time_stamp(File, Entity, Options).
+
+size_time_stamp(File, Entity, Options) :-
+    default_provenance_graph(DefaultBundle),
+    option(prov(ProvBundle), Options, DefaultBundle),
+    rdf_assert(Entity, rdf:type, prov:'Entity', ProvBundle),
     (   access_file(File, read)
     ->  size_file(File, Size),
         time_file(File, Time),
@@ -215,9 +220,7 @@ log_entity_create(File, Options) :-
     ->  Entity = File
     ;   uri_file_name(Entity, File)
     ),
-    xsd_now(TimeStamp),
-    rdf_assert(Entity, rdf:type, prov:'Entity', ProvBundle),
-    rdf_assert(Entity, prov:generatedAtTime, TimeStamp^^xsd:dateTime,  ProvBundle),
+    size_time_stamp(File, Entity, Options),
     rdf_assert(Entity, prov:wasGeneratedBy, Activity, ProvBundle),
     log_derivation(Entity, Options),
     log_entity_graph_properties(Entity, Graph, ProvBundle).
