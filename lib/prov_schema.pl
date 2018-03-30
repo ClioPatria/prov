@@ -13,6 +13,7 @@
 :- use_module(library(semweb/rdf_persistency)).
 
 :- use_module(library(git)).
+:- use_module(library(lists)).
 :- use_module(library(option)).
 :- use_module(library(socket)).
 :- use_module(library(uri)).
@@ -236,10 +237,12 @@ log_entity_create(File, Options) :-
     log_entity_graph_properties(Entity, Graph, ProvBundle).
 
 log_derivation(Entity, Options) :-
+    option(activity(Activity), Options),
     option(was_derived_from(Sources), Options),!,
     option(prov(ProvBundle), Options),
     forall(member(Source, Sources),
            (   uri_file_name(SourceUri, Source),
+               rdf_assert(Activity, prov:used, SourceUri, ProvBundle),
                rdf_assert(Entity, prov:wasDerivedFrom, SourceUri, ProvBundle)
            )
           ).
