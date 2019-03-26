@@ -13,6 +13,7 @@
 :- use_module(library(semweb/rdf_persistency)).
 
 :- use_module(library(git)).
+:- use_module(library(lists)).
 :- use_module(library(option)).
 :- use_module(library(socket)).
 :- use_module(library(uri)).
@@ -44,17 +45,21 @@ default_provenance_graph(provbundle).
 %   Clear current_prov_uri cached assertions
 %   and initialize prov bundle
 prov_init(Options) :-
-    retractall(current_prov_uri(_,_)),
     default_provenance_graph(DefaultBundle),
     option(prov(ProvBundle), Options, DefaultBundle),
     option(persistency(Persistency), Options, false),
-    rdf_unload_graph(ProvBundle),
+    option(clear_bundle(UnloadBundle), Options, true),
+    (   UnloadBundle
+    ->  rdf_unload_graph(ProvBundle),
+        retractall(current_prov_uri(_,_))
+    ;   true
+    ),
     rdf_persistency(ProvBundle, Persistency),
-    rdf_assert('', rdf:type, prov:'Bundle', ProvBundle),
+    rdf_assert(ProvBundle, rdf:type, prov:'Bundle', ProvBundle),
     prov_uri(ProvBundle, program(Program), Options),
     prov_uri(ProvBundle, person(Person), Options),
-    rdf_assert('', prov:wasAttributedTo, Person, ProvBundle),
-    rdf_assert('', prov:wasAttributedTo, Program, ProvBundle).
+    rdf_assert(ProvBundle, prov:wasAttributedTo, Person, ProvBundle),
+    rdf_assert(ProvBundle, prov:wasAttributedTo, Program, ProvBundle).
 
 
 %!  prov_uri(+Graph, -URI, +Options) is det.
@@ -107,15 +112,21 @@ prov_program(Graph, Program, Options)  :-
     rdf_assert(Location, provx:cwd, CWDF, Graph),
     rdf_assert(Location, rdfs:label, LocationLabel^^xsd:string, Graph),
     forall(member(M-U-V-D, SortedModules),
-           (   variant_sha1(M-U-V-D, CompHash),
+           (   variant_sha1(M-U-V-D-comp, CompHash),
+               variant_sha1(M-U-V-D-vers, VersHash),
                rdf_global_id(provx:CompHash, Comp),
+               rdf_global_id(provx:VersHash, Version),
+               format(atom(VLabel), '~w (~w)', [M, V]),
+               rdf_assert(Comp,    rdf:type, doap:'Project', Graph),
+               rdf_assert(Version, rdf:type, doap:'Version', Graph),
+               rdf_assert(D,       rdf:type, doap:'GitBranch', Graph),
                rdf_assert(Program, provx:component, Comp, Graph),
-               rdf_assert(Comp, rdf:type, doap:'Project', Graph),
-               rdf_assert(D, rdf:type, doap:'GitBranch', Graph),
-               rdf_assert(Comp, doap:revision, V^^xsd:string, Graph),
+               rdf_assert(Version, doap:revision, V^^xsd:string, Graph),
+               rdf_assert(Version, rdfs:label, VLabel^^xsd:string, Graph),
                rdf_assert(Comp, doap:name, M@en, Graph),
                rdf_assert(Comp, doap:repository, D, Graph),
                rdf_assert(Comp, doap:homepage, U, Graph),
+               rdf_assert(Comp, doap:release, Version, Graph),
                prov_module_settings(Comp, M, Options)
            )
           ),
@@ -132,11 +143,14 @@ prov_person(Graph, Person, Options) :-
     assert(current_prov_uri(Graph, person(Person))).
 
 default_user_name(UserName) :-
-    git(['config','--get','user.name'], [output(Codes)]),
+    catch(git(['config','--get','user.name'], [output(Codes)]), _, fail),
     atom_codes(Atom, Codes),
     normalize_space(atom(UserName), Atom),
     !.
-
+default_user_name(UserName) :-
+    getenv('USER', UserName),
+    !.
+default_user_name(anonymous).
 
 xsd_now(TimeStamp) :-
     get_time(Time),
@@ -174,16 +188,24 @@ log_entity_use(Spec, Options) :-
     option(prov(ProvBundle), Options, DefaultBundle),
     option(activity(Activity), Options),
     spec_entity_file(Spec, Entity, File),
-    rdf_assert(Entity, rdf:type, prov:'Entity', ProvBundle),
     rdf_assert(Activity, prov:used, Entity, ProvBundle),
-    (   access_file(File, read)
+    size_time_stamp(File, Entity, Options).
+
+size_time_stamp(File, Entity, Options) :-
+    default_provenance_graph(DefaultBundle),
+    option(prov(ProvBundle), Options, DefaultBundle),
+    rdf_retractall(Entity, provx:file_size,      _, ProvBundle),
+    rdf_retractall(Entity, prov:generatedAtTime, _, ProvBundle),
+    rdf_assert(Entity, rdf:type, prov:'Entity', ProvBundle),
+    (   access_file(File, read),
+        time_file(File, Time)
     ->  size_file(File, Size),
-        time_file(File, Time),
-        xsd_timestamp(Time, Stamp),
         rdf_assert(Entity, provx:file_size, Size^^xsd:integer, ProvBundle),
-        rdf_assert(Entity, prov:generatedAtTime, Stamp^^xsd:dateTime, ProvBundle)
-    ;   true
-    ).
+        xsd_timestamp(Time, Stamp)
+    ;   xsd_now(Stamp)
+    ),
+    rdf_assert(Entity, prov:generatedAtTime, Stamp^^xsd:dateTime, ProvBundle).
+
 
 spec_entity_file(Spec, Entity, File) :-
     uri_is_global(Spec),
@@ -215,9 +237,7 @@ log_entity_create(File, Options) :-
 	;   xsd_now(TimeStamp)
         )
     ),
-    xsd_now(TimeStamp),
-    rdf_assert(Entity, rdf:type, prov:'Entity', ProvBundle),
-    rdf_assert(Entity, prov:generatedAtTime, TimeStamp^^xsd:dateTime,  ProvBundle),
+    size_time_stamp(File, Entity, Options),
     rdf_assert(Entity, prov:wasGeneratedBy, Activity, ProvBundle),
     log_derivation(Entity, Options),
     log_entity_graph_properties(Entity, Graph, ProvBundle).
@@ -227,6 +247,7 @@ log_derivation(Entity, Options) :-
     option(prov(ProvBundle), Options),
     forall(member(Source, Sources),
            (   uri_file_name(SourceUri, Source),
+               log_entity_use(SourceUri, Options),
                rdf_assert(Entity, prov:wasDerivedFrom, SourceUri, ProvBundle)
            )
           ).
@@ -261,7 +282,7 @@ assert_key_value_pair(Entity, Key0, Value0, Graph) :-
     ;   compound(Value0)
     ->  format(atom(Atom), '~p', [Value0]),
         Value = Atom^^XsdString
-    ;   number(Value0)
+    ;   ( number(Value0) ; uri_is_global(Value0) )
     ->  Value = Value0
     ;   Value = Value0^^XsdString
     ),
