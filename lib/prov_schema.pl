@@ -197,7 +197,8 @@ size_time_stamp(File, Entity, Options) :-
     rdf_retractall(Entity, provx:file_size,      _, ProvBundle),
     rdf_retractall(Entity, prov:generatedAtTime, _, ProvBundle),
     rdf_assert(Entity, rdf:type, prov:'Entity', ProvBundle),
-    (   access_file(File, read),
+    (   \+ uri_is_global(File),
+        access_file(File, read),
         time_file(File, Time)
     ->  size_file(File, Size),
         rdf_assert(Entity, provx:file_size, Size^^xsd:integer, ProvBundle),
